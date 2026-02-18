@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+/* 锁定页面高度与缩放，绝对禁止滚动 */
+html, body {
+  height: 100vh;
+  width: 100vw;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  -webkit-overflow-scrolling: none;
+  overscroll-behavior: none;
+}
+body {
+  background: #E8F8F5;
+  font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  min-height: 0;
+  touch-action: none;
+}
+.main-app {
+  flex: 1;
+  width: 100%;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0;
+  padding: 0 12px 6px;
+  box-sizing: border-box;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* 顶部：极紧凑，元素间距贴近 */
+.page-header {
+  flex-shrink: 0;
+  text-align: center;
+  padding: 4px 0 2px;
+  margin: 0;
+  background: #E8F8F5;
+}
+.page-header h1 {
+  font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 0;
+  padding: 0;
+  line-height: 1.2;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.08);
+}
+.page-header .sub {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #5c5c5c;
+  margin: 0 0 2px;
+  padding: 0;
+  line-height: 1.2;
+}
+.page-header .mode-badge {
+  display: inline-block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin: 0 0 4px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: rgba(255,255,255,0.5);
+  backdrop-filter: blur(6px);
+}
+.page-header .mode-row { display: flex; gap: 0.35rem; justify-content: center; margin: 0; padding: 0; }
+.page-header .mode-btn {
+  display: inline-block; padding: 0.25rem 0.6rem; border-radius: 0.5rem; text-decoration: none;
+  font-weight: 600; text-align: center; width: 48%; box-sizing: border-box; font-size: 0.85rem; line-height: 1.2;
+}
+.page-header .mode-btn:hover { filter: brightness(1.1); }
+
+/* 中间：扭蛋机容器 280px 高，紧贴上下，一页内看完 */
+.gashapon-section,
+.gashapon-container {
+  height: 280px;
+  max-height: 280px;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  background: #f5f0e8;
+  border-radius: 16px;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+  flex-shrink: 0;
+}
+
+/* 扭蛋机图片：在 280px 容器内垂直居中 */
+.gashapon-section .machine-wrap {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  height: 90%;
+  max-height: 250px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.gashapon-section .machine-wrap img {
+  height: 90%;
+  width: auto;
+  max-height: 250px;
+  object-fit: contain;
+  transition: transform 0.1s;
+}
+.gashapon-section .machine-wrap img.shake {
+  animation: shake 0.5s ease-in-out;
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  15% { transform: translateX(-5px) rotate(-2deg); }
+  30% { transform: translateX(5px) rotate(2deg); }
+  45% { transform: translateX(-4px) rotate(-1deg); }
+  60% { transform: translateX(4px) rotate(1deg); }
+  75% { transform: translateX(-2px) rotate(-0.5deg); }
+}
+
+/* 图片去背终极方案：扭蛋机、球体、裂开蛋壳，消除白边 */
+.gashapon-section img {
+  mix-blend-mode: multiply;
+  filter: contrast(1.1);
+  display: block;
+  margin: 0 auto;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+.gashapon-section .result-modal .food-icon { mix-blend-mode: normal; filter: none; display: inline-block; margin: 0; }
+
+/* 「点击抽取」紧贴扭蛋机底座 */
+.gashapon-section .btn-draw-wrap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 6px;
+  text-align: center;
+  z-index: 15;
+  pointer-events: auto;
+}
+.gashapon-section .btn-draw {
+  padding: 8px 22px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(180deg, #ffb347 0%, #ff9f43 30%, #ee5a24 100%);
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #c0392b, 0 6px 16px rgba(0,0,0,0.2);
+  transition: transform 0.08s, box-shadow 0.08s;
+  text-decoration: none;
+  display: inline-block;
+  font-family: inherit;
+  letter-spacing: 0.02em;
+}
+.gashapon-section .btn-draw:hover { filter: brightness(1.06); }
+.gashapon-section .btn-draw:active {
+  transform: translateY(3px) scale(0.98);
+  box-shadow: 0 1px 0 #c0392b, 0 3px 10px rgba(0,0,0,0.18);
+}
+
+/* 球动画层：position absolute 不占位、不撑开父容器 */
+.gashapon-section .ball-layer {
+  position: absolute;
+  left: 0; top: 0; right: 0; bottom: 0;
+  pointer-events: none;
+  visibility: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gashapon-section .ball-layer.visible { visibility: visible; }
+.gashapon-section .ball-layer .ball {
+  width: 52px; height: 52px;
+  position: absolute;
+  left: 50%; top: 38%;
+  margin-left: -26px; margin-top: -26px;
+}
+.gashapon-section .ball-layer .ball img { width: 100%; height: 100%; object-fit: contain; }
+.gashapon-section .ball-layer .ball.fly {
+  animation: ball-fly 0.6s cubic-bezier(0.33, 1, 0.68, 1) forwards;
+}
+@keyframes ball-fly {
+  0% { transform: translate(-50%, -50%) scale(0.5); opacity: 1; top: 38%; }
+  100% { transform: translate(-50%, -50%) scale(1.5); opacity: 1; top: 50%; }
+}
+.gashapon-section .ball-layer .ball.vibrate { animation: ball-vibrate 0.2s ease-in-out; }
+@keyframes ball-vibrate {
+  0%, 100% { transform: translate(-50%, -50%) scale(1.5); }
+  25% { transform: translate(-50%, -50%) scale(1.5) translateX(-4px); }
+  75% { transform: translate(-50%, -50%) scale(1.5) translateX(4px); }
+}
+.gashapon-section .ball-layer .ball-half {
+  position: absolute; width: 30px; height: 52px; top: 50%; margin-top: -26px; display: none;
+}
+.gashapon-section .ball-layer .ball-half img { width: 100%; height: 100%; object-fit: cover; }
+.gashapon-section .ball-layer .ball-half.left { left: 50%; margin-left: -42px; animation: split-l 0.4s ease-out forwards; }
+.gashapon-section .ball-layer .ball-half.right { left: 50%; margin-left: 12px; animation: split-r 0.4s ease-out forwards; }
+@keyframes split-l { to { margin-left: -85px; opacity: 0.5; } }
+@keyframes split-r { to { margin-left: 85px; opacity: 0.5; } }
+
+/* 结果弹窗（单例 #resultModal）：position fixed 不占位，不撑开父容器 */
+.gashapon-section .result-overlay,
+#resultModal {
+  position: absolute;
+  left: 0; top: 0; right: 0; bottom: 0;
+  z-index: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0,0,0,0.25);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.28s ease;
+}
+#resultModal.visible,
+.gashapon-section .result-overlay.visible {
+  position: fixed;
+  left: 0; top: 0; right: 0; bottom: 0;
+  z-index: 9999;
+  display: flex;
+  opacity: 1;
+  pointer-events: auto;
+  background: rgba(0,0,0,0.4);
+}
+.gashapon-section .result-modal {
+  width: 100%;
+  max-width: 340px;
+  max-height: 85vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255,255,255,0.5);
+  border-radius: 24px;
+  padding: 24px 20px 20px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.8);
+  transform: scale(0.6);
+  opacity: 0;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+}
+.gashapon-section .result-overlay.visible .result-modal {
+  transform: scale(1);
+  opacity: 1;
+}
+.gashapon-section .result-modal h2 {
+  font-size: 22px; font-weight: 700; color: #1a1a1a; text-align: center; margin-bottom: 8px; line-height: 1.35;
+}
+.gashapon-section .result-modal .modal-calorie {
+  text-align: center; font-size: 13px; color: #666; margin-bottom: 16px;
+}
+.gashapon-section .result-modal .modal-section {
+  font-size: 14px; color: #333; margin-bottom: 14px;
+}
+.gashapon-section .result-modal .modal-section h4 {
+  font-size: 13px; font-weight: 700; color: #2d2d2d; margin-bottom: 6px;
+}
+.gashapon-section .result-modal .modal-section p,
+.gashapon-section .result-modal .modal-section ul { margin: 0; padding-left: 18px; line-height: 1.55; }
+.gashapon-section .result-modal .modal-section ul { list-style: disc; }
+.gashapon-section .result-modal .modal-section li { margin-bottom: 4px; }
+.gashapon-section .result-modal .modal-section .modal-tips { margin: 0; }
+.gashapon-section .result-modal .modal-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(0,0,0,0.08);
+}
+.gashapon-section .result-modal .modal-actions .btn {
+  flex: 1;
+  padding: 12px 16px;
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
+  display: block;
+  font-family: inherit;
+  transition: filter 0.15s, transform 0.1s;
+}
+.gashapon-section .result-modal .modal-actions .btn:active { transform: scale(0.98); }
+.gashapon-section .result-modal .modal-actions .btn-retry {
+  background: #fff; color: #333;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid rgba(0,0,0,0.06);
+}
+.gashapon-section .result-modal .modal-actions .btn-retry:hover { filter: brightness(0.97); }
+.gashapon-section .result-modal .modal-actions .btn-confirm {
+  background: linear-gradient(180deg, #4ECDC4 0%, #3dbdb5 100%);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(78,205,196,0.4);
+}
+.gashapon-section .result-modal .modal-actions .btn-confirm:hover { filter: brightness(1.06); }
+.gashapon-section .result-modal .food-icon {
+  mix-blend-mode: normal;
+  max-width: 64px;
+  height: auto;
+}
+
+/* 底部：紧贴扭蛋机区域，一页内完整显示 */
+.page-footer {
+  flex-shrink: 0;
+  padding: 4px 0 2px;
+  margin: 0;
+  background: #E8F8F5;
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  align-items: center;
+}
+.page-footer .footer-btn {
+  flex: 1;
+  max-width: 180px;
+  padding: 6px 10px;
+  font-size: 12px;
+  line-height: 1.2;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  color: #1a1a1a;
+  background: #d0d3d6;
+  border: 1px solid #b0b5b9;
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: filter 0.15s;
+  box-sizing: border-box;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+.page-footer .footer-btn:hover { filter: brightness(0.92); background: #c4c8cc; }
+
+</style>
+</head>
+<body>
+<script>
+(function(){ document.documentElement.style.overflow='hidden'; document.documentElement.style.height='100%'; document.body.style.overflow='hidden'; document.body.style.position='fixed'; document.body.style.top='0'; document.body.style.left='0'; document.body.style.right='0'; document.body.style.bottom='0'; document.body.style.width='100%'; })();
+</script>
+<div class="main-app" id="mainApp">
+  <header class="page-header">
+    <h1>🍳 今天吃什么</h1>
+    <p class="sub">✨ 抽一抽，吃饭不纠结 ✨</p>
+    <p class="mode-badge" style="color: __MODE_COLOR__;">__MODE_ICON__ 当前模式：__MODE__模式</p>
+    <div class="mode-row">
+      <a class="mode-btn" href="#" onclick="try{window.top.location.href='?mode=diet';}catch(e){window.location.href='?mode=diet';}return false;" style="background:__BG_DIET__;color:__COLOR_DIET__;">🥗 减脂模式</a>
+      <a class="mode-btn" href="#" onclick="try{window.top.location.href='?mode=indulge';}catch(e){window.location.href='?mode=indulge';}return false;" style="background:__BG_INDULGE__;color:__COLOR_INDULGE__;">🍟 放纵模式</a>
+    </div>
+  </header>
+
+  <main class="gashapon-container gashapon-section" id="gashapon-root">
+    <div class="machine-wrap">
+      <img id="gashapon-machine" src="__MACHINE_SRC__" alt="扭蛋机">
+    </div>
+    <div class="btn-draw-wrap">
+      <a href="#" class="btn-draw" id="gashapon-btn" onclick="try{window.top.location.href='?draw=1';}catch(e){window.location.href='?draw=1';}return false;" style="__HIDE_DRAW_BTN__">点击抽取</a>
+    </div>
+    <div class="ball-layer" id="ball-container">
+      <div class="ball" id="ball-whole"><img src="__BALL_SRC__" alt=""></div>
+      <div class="ball-half left" id="ball-left"><img src="__BALL_LEFT_SRC__" alt=""></div>
+      <div class="ball-half right" id="ball-right"><img src="__BALL_RIGHT_SRC__" alt=""></div>
+    </div>
+    <!-- 预置单例弹窗，默认 display:none，严禁 appendChild 创建新弹窗 -->
+    <div class="result-overlay" id="resultModal" style="display: none;">
+      <div class="result-modal" id="result-modal">
+        <div class="content">
+          <h2 id="modal-title">今天吃：<span id="modal-food-name" class="food-title"></span></h2>
+          <p class="modal-calorie" id="modal-calorie"></p>
+          <div class="modal-section" id="modal-section-match">
+            <h4># 推荐搭配</h4>
+            <p id="modal-match"></p>
+          </div>
+          <div class="modal-section" id="modal-section-tips">
+            <h4 id="modal-tips-title"># 注意事项</h4>
+            <div id="modal-tips-content"></div>
+          </div>
+          <div class="modal-actions">
+            <a href="#" class="btn btn-retry" id="modal-btn-again">再抽一次</a>
+            <a href="#" class="btn btn-confirm" id="modal-btn-confirm">就吃这个</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="page-footer">
+    <a class="footer-btn" href="?action=record" onclick="try{window.top.location.href='?action=record';}catch(e){window.location.href='?action=record';}return false;">本餐外卖花销</a>
+    <a class="footer-btn" href="?action=recap" onclick="try{window.top.location.href='?action=recap';}catch(e){window.location.href='?action=recap';}return false;">本周总计</a>
+  </footer>
+</div>
+
+<script>
+(function(){
+  /* 严禁 document.body.appendChild(modal) 或 createElement 创建弹窗；仅使用预置 #resultModal */
+  var mainApp = document.getElementById('mainApp');
+  var resultModal = document.getElementById('resultModal');
+  var modal = resultModal ? resultModal.querySelector('.result-modal') : null;
+  var machine = document.getElementById('gashapon-machine');
+  var btn = document.getElementById('gashapon-btn');
+  var ballContainer = document.getElementById('ball-container');
+  var ballWhole = document.getElementById('ball-whole');
+  var ballLeft = document.getElementById('ball-left');
+  var ballRight = document.getElementById('ball-right');
+  var resultData = __RESULT_JSON__;
+  var resultObj = null;
+  try { if (resultData) resultObj = JSON.parse(resultData); } catch(e) {}
+
+  function escapeHtml(s) {
+    if (s == null) return '';
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  /** 每次开始抽卡前调用：清除上一轮球体/多余节点，隐藏弹窗，重置动画状态 */
+  function cleanup() {
+    if (resultModal) { resultModal.classList.remove('visible'); resultModal.style.display = 'none'; }
+    if (ballContainer) {
+      ballContainer.classList.remove('visible');
+      var balls = ballContainer.querySelectorAll('.ball, .ball-half');
+      for (var i = 0; i < balls.length; i++) {
+        balls[i].style.display = '';
+        balls[i].classList.remove('fly', 'vibrate');
+      }
+      if (ballWhole) ballWhole.style.display = '';
+      if (ballLeft) ballLeft.style.display = 'none';
+      if (ballRight) ballRight.style.display = 'none';
+    }
+    if (machine) machine.classList.remove('shake');
+    if (btn) { btn.style.visibility = ''; btn.style.display = ''; }
+    document.documentElement.removeAttribute('style');
+    document.body.removeAttribute('style');
+    if (mainApp) mainApp.removeAttribute('style');
+  }
+
+  /** 再抽一次：重置动画并隐藏弹窗（不跳转，仅 UI 重置） */
+  function resetGashapon() {
+    cleanup();
+  }
+
+  /** 单例弹窗：仅更新 #resultModal 内部 .content 的 innerHTML 并切换 display，禁止 appendChild */
+  function fillModal() {
+    if (!resultModal || !modal || !resultObj) return;
+    var name = resultObj.菜品名 || resultObj.品类 || '';
+    var currentFood = name || '';
+    var calorie = resultObj.热量 != null ? '热量约 ' + resultObj.热量 + ' kcal' : '';
+    var match = resultObj.搭配 || '';
+    var tips = resultObj.注意事项;
+    var happy = resultObj.快乐提示;
+    var tipsHtml = '';
+    if (tips && Array.isArray(tips) && tips.length > 0) {
+      tipsHtml = '<h4># 注意事项</h4><div class="modal-tips">' + '<ul>' + tips.map(function(t) { return '<li>' + escapeHtml(t) + '</li>'; }).join('') + '</ul></div>';
+    } else if (happy) {
+      tipsHtml = '<h4># 快乐提示</h4><div class="modal-tips"><p>' + escapeHtml(happy) + '</p></div>';
+    } else {
+      tipsHtml = '<h4># 提示</h4><div class="modal-tips"><p>开心吃～</p></div>';
+    }
+    var content = modal.querySelector('.content');
+    if (content) {
+      content.innerHTML = '<h2 id="modal-title">今天吃：<span class="food-title">' + escapeHtml(name) + '！</span></h2>' +
+        '<p class="modal-calorie">' + escapeHtml(calorie) + '</p>' +
+        '<div class="modal-section"><h4># 推荐搭配</h4><p id="modal-match">' + escapeHtml(match) + '</p></div>' +
+        '<div class="modal-section">' + tipsHtml + '</div>' +
+        '<div class="modal-actions">' +
+        '<a href="#" class="btn btn-retry" id="modal-btn-again">再抽一次</a>' +
+        '<a href="#" class="btn btn-confirm" id="modal-btn-confirm">就吃这个</a>' +
+        '</div>';
+    }
+    resultModal.style.display = 'flex';
+    resultModal.classList.add('visible');
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+
+    var btnAgain = modal.querySelector('#modal-btn-again');
+    var btnConfirm = modal.querySelector('#modal-btn-confirm');
+    if (btnAgain) {
+      btnAgain.onclick = function(e) { e.preventDefault(); resetGashapon(); return false; };
+    }
+    if (btnConfirm) {
+      btnConfirm.onclick = function(e) {
+        e.preventDefault();
+        var url = 'record.html?food=' + encodeURIComponent(currentFood);
+        try { window.top.location.href = url; } catch (err) { window.location.href = url; }
+        return false;
+      };
+    }
+  }
+
+  cleanup();
+
+  if (!resultObj) { return; }
+
+  btn.style.visibility = 'hidden';
+  machine.classList.add('shake');
+  setTimeout(function(){
+    machine.classList.remove('shake');
+    ballContainer.classList.add('visible');
+    ballWhole.classList.add('fly');
+    setTimeout(function(){
+      ballWhole.classList.remove('fly');
+      ballWhole.classList.add('vibrate');
+      setTimeout(function(){
+        ballWhole.style.display = 'none';
+        ballLeft.style.display = 'block';
+        ballRight.style.display = 'block';
+        if (typeof confetti === 'function') {
+          confetti({ origin: { x: 0.5, y: 0.5 }, spread: 130, startVelocity: 40, particleCount: 100 });
+        }
+        fillModal();
+      }, 200);
+    }, 600);
+  }, 500);
+})();
+</script>
+</body>
+</html>

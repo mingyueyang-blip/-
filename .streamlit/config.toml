@@ -1,0 +1,6 @@
+# 隐藏顶栏「Deploy」等，避免黑色工具栏
+[client]
+toolbarMode = "viewer"
+
+[server]
+headless = true
